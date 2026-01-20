@@ -1,0 +1,28 @@
+{
+  "name": "ai-rag",
+  "version": "1.0.0",
+  "description": "This is a simple AI RAG application to answer questions based on a given text.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.ts",
+    "ingest": "node lib/ai/embedding/run-ingest.ts"
+  },
+  "keywords": [],
+  "author": "Juan Pablo Costa",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^25.0.9",
+    "@types/pdf-parse": "^1.1.5",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@langchain/textsplitters": "^1.0.1",
+    "ai": "^6.0.42",
+    "mongoose": "^9.1.4",
+    "ollama-ai-provider-v2": "^2.0.0",
+    "pdf-parse": "^2.4.5",
+    "zod": "^4.3.5"
+  }
+}
