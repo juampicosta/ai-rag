@@ -5,7 +5,10 @@ import type { ChatMessage } from '../../types/chat.types.ts'
 
 const model = ollama('llama3.2')
 
-export async function askAi(messages: ChatMessage[]) {
+export async function askAi(
+  messages: ChatMessage[],
+  onFinish?: (text: string) => Promise<void>
+) {
   // Get the last user message to use as the search query
   const question = messages[messages.length - 1].content
 
@@ -39,7 +42,9 @@ ${contextText}
     model,
     temperature: 0.1, // Low temperature for factual consistency
     messages: [{ role: 'system', content: systemPrompt }, ...messages] as any,
-    maxOutputTokens: 500
+    onFinish: async ({ text }) => {
+      if (onFinish) await onFinish(text)
+    }
   })
 
   return textStream

@@ -1,45 +1,140 @@
-import type { Request, Response } from 'express'
-import { chatRequestSchema } from '../schemas/chat.schema.ts'
+import type { Response, NextFunction } from 'express'
+import { Readable } from 'stream'
 import { askAi } from '../lib/ai/generation.ts'
-import type { ChatMessage } from '../types/chat.types.ts'
+import type { AuthRequest } from '../middleware/auth.middleware.ts'
+import * as chatService from '../lib/services/chat.service.ts'
+import { chatRequestSchema } from '../schemas/chat.schema.ts'
+import { AppError } from '../lib/utils/AppError.ts'
 
-export const chatHandler = async (req: Request, res: Response) => {
+export const sendMessage = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    // 1. Zod Validation
     const validation = chatRequestSchema.safeParse(req.body)
 
     if (!validation.success) {
       res.status(400).json({
-        error: 'Validation Error',
-        details: validation.error.format()
+        status: 'fail',
+        message: 'Validation Error',
+        errors: validation.error.issues
       })
       return
     }
 
-    const { message } = validation.data
+    const { message, chatId: bodyChatId } = validation.data
+    const chatId = (req.params.id as string) || bodyChatId // Data from URL params has priority
+    const userId = req.user!._id.toString()
 
-    // 2. Prepare message for AI
-    const messages: ChatMessage[] = [{ role: 'user', content: message }]
+    // 1. Get or Create Chat
+    let chat
+    if (chatId) {
+      chat = await chatService.findChatById(chatId, userId)
+      if (!chat) {
+        throw new AppError('Chat not found', 404)
+      }
+    } else {
+      chat = await chatService.createChat(userId, message)
+    }
 
-    // 3. Call AI Service
-    const stream = await askAi(messages)
+    // 2. Add User Message
+    const updatedChat = await chatService.addUserMessage(
+      chat._id.toString(),
+      message
+    )
+    if (!updatedChat) throw new AppError('Error updating chat', 500)
 
-    // 4. Setup Streaming Response
+    // 3. Prepare AI Context
+    const history = updatedChat.messages.map((m) => ({
+      role: m.role as 'user' | 'assistant' | 'system',
+      content: m.content
+    }))
+
+    // 4. Stream Response & Save
+    const aiStream = await askAi(history, async (responseContent) => {
+      await chatService.addAssistantMessage(
+        chat!._id.toString(),
+        responseContent
+      )
+    })
+
+    // 5. Pipe Stream
     res.setHeader('Content-Type', 'text/plain; charset=utf-8')
     res.setHeader('Transfer-Encoding', 'chunked')
+    res.setHeader('X-Chat-Id', chat._id.toString())
 
-    // 5. Pipe stream
-    for await (const chunk of stream) {
-      res.write(chunk)
-    }
-
-    res.end()
+    // @ts-ignore
+    const nodeStream = Readable.fromWeb(aiStream as any)
+    nodeStream.pipe(res)
   } catch (error) {
-    console.error('Chat Controller Error:', error)
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Internal Server Error' })
-    } else {
-      res.end()
+    next(error)
+  }
+}
+
+export const getUserChats = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1
+    const limit = parseInt(req.query.limit as string) || 10
+
+    const result = await chatService.getUserChats(
+      req.user!._id.toString(),
+      page,
+      limit
+    )
+    res.json({
+      status: 'success',
+      data: result
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getChatHistory = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params as { id: string }
+    const chat = await chatService.findChatById(id, req.user!._id.toString())
+
+    if (!chat) {
+      throw new AppError('Chat not found', 404)
     }
+
+    res.json({
+      status: 'success',
+      data: chat
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const deleteChat = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params as { id: string }
+    const success = await chatService.deleteChat(id, req.user!._id.toString())
+
+    if (!success) {
+      throw new AppError('Chat not found or not authorized', 404)
+    }
+
+    res.json({
+      status: 'success',
+      message: 'Chat deleted successfully'
+    })
+  } catch (error) {
+    next(error)
   }
 }

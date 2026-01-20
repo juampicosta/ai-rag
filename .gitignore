@@ -18,3 +18,4 @@ dist/
 Thumbs.db
 
 data/   
+pnpm-lock.yaml

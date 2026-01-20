@@ -13,6 +13,11 @@
   "license": "ISC",
   "type": "module",
   "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
     "@types/node": "^25.0.9",
     "@types/pdf-parse": "^1.1.5",
     "typescript": "^5.9.3"
@@ -20,7 +25,14 @@
   "dependencies": {
     "@langchain/textsplitters": "^1.0.1",
     "ai": "^6.0.42",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.4",
+    "morgan": "^1.10.1",
     "ollama-ai-provider-v2": "^2.0.0",
     "pdf-parse": "^2.4.5",
     "zod": "^4.3.5"
