@@ -3,7 +3,7 @@ import { ollama } from 'ollama-ai-provider-v2'
 import { retrieveContextViaAtlas } from './retrieval.ts'
 import type { ChatMessage } from '../../types/chat.types.ts'
 
-const model = ollama('deepseek-r1')
+const model = ollama('llama3.2')
 
 export async function askAi(messages: ChatMessage[]) {
   // Get the last user message to use as the search query
@@ -15,27 +15,31 @@ export async function askAi(messages: ChatMessage[]) {
 
   // Debug logs
   console.log('--- Debug: Retrieved Documents ---')
-  contextDocs.forEach((d, i) =>
-    console.log(`[${i}] Score: ${(d as any).score.toFixed(4)}`)
-  )
+  contextDocs.forEach((d, i) => console.log(d))
 
   const contextText = contextDocs.map((d) => d.content).join('\n\n')
 
   // 2. Construct System Prompt
-  const systemPrompt = `You are a helpful assistant. You must answer the user's question using the provided context below.
-If the answer is not in the context, say "I cannot find the answer in the provided documents."
+  const systemPrompt = `You are a helpful assistant.
+Your goal is to answer the user's question using the provided context.
 
-Context:
-${contextText}`
+Rules:
+1. If you find ANY relevant information in the context, answer directly. Do NOT apologize for partial information.
+2. Only say "Lo siento, no tengo información..." if the context is completely unrelated or empty.
+3. specific statistics or data points found in the context should be presented clearly.
+4. Speak in Spanish.
+5. Keep your answers concise and use bullet points.
+
+<context>
+${contextText}
+</context>`
 
   // 3. Stream response
-  // We prepend the system prompt to the messages history
   const { textStream } = streamText({
     model,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      ...messages.reverse() // Restore order after reverse() check above
-    ] as any
+    temperature: 0.1, // Low temperature for factual consistency
+    messages: [{ role: 'system', content: systemPrompt }, ...messages] as any,
+    maxOutputTokens: 500
   })
 
   return textStream

@@ -1,32 +1,8 @@
-import { embed, cosineSimilarity } from 'ai'
+import { embed } from 'ai'
 import { ollama } from 'ollama-ai-provider-v2'
 import { DocumentModel } from '../../models/Document.ts'
 
 const embeddingModel = ollama.embedding('nomic-embed-text')
-
-export async function retrieveContext(query: string, topK: number = 3) {
-  // 1. Generate embedding for the query
-  const { embedding: queryEmbedding } = await embed({
-    model: embeddingModel,
-    value: query
-  })
-
-  // 2. Fetch all documents (For local dev with small dataset. Production would use Vector DB)
-  // Optimization: We could stream this or batch it if it gets larger
-  const documents = await DocumentModel.find({})
-
-  // 3. Score documents
-  const scoredDocs = documents.map((doc) => ({
-    content: doc.content,
-    score: cosineSimilarity(queryEmbedding, doc.embedding),
-    source: doc.metadata?.get('source')
-  }))
-
-  // 4. Sort by score descending and take top K
-  const topDocs = scoredDocs.sort((a, b) => b.score - a.score).slice(0, topK)
-
-  return topDocs
-}
 
 /**
  * MongoDB Atlas Vector Search Implementation
