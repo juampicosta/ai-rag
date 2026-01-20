@@ -46,7 +46,7 @@ export const sendMessage = async (
     if (!updatedChat) throw new AppError('Error updating chat', 500)
 
     // 3. Prepare AI Context
-    const history = updatedChat.messages.map((m) => ({
+    const history = updatedChat.messages.slice(-10).map((m) => ({
       role: m.role as 'user' | 'assistant' | 'system',
       content: m.content
     }))
